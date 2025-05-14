@@ -1,0 +1,108 @@
+#include <Keypad.h>
+#include <LiquidCrystal.h>
+
+// LCD branché aux broches 13, 12, 11, 10, 9, 8
+LiquidCrystal lcd(13, 12, 11, 10, 9, 8);
+
+// Variables
+long first = 0;
+long second = 0;
+double total = 0;
+char customKey;
+char operation;
+bool readyForNext = false;
+
+// États de la calculatrice
+enum State { ENTER_FIRST, ENTER_SECOND };
+State calcState = ENTER_FIRST;
+
+// Clavier 4x4
+const byte ROWS = 4;
+const byte COLS = 4;
+char keys[ROWS][COLS] = 
+{
+  {'1', '2', '3', '+'},
+  {'4', '5', '6', '-'},
+  {'7', '8', '9', '*'},
+  {'C', '0', '=', '/'}
+};
+
+byte rowPins[ROWS] = {7, 6, 5, 4};
+byte colPins[COLS] = {3, 2, 1, 0};
+
+Keypad customKeypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+
+void setup() {
+  lcd.begin(16, 2);
+  lcd.clear();
+}
+
+void loop() {
+  customKey = customKeypad.getKey();
+
+  if (customKey != NO_KEY) {
+    
+    // Touche chiffre
+    if (customKey >= '0' && customKey <= '9') {
+      if (readyForNext) {
+        first = 0;
+        second = 0;
+        total = 0;
+        calcState = ENTER_FIRST;
+        readyForNext = false;
+        lcd.clear();
+      }
+
+      if (calcState == ENTER_FIRST) {
+        first = first * 10 + (customKey - '0');
+        lcd.setCursor(0, 0);
+        lcd.print(first);
+      } else if (calcState == ENTER_SECOND) {
+        second = second * 10 + (customKey - '0');
+        lcd.setCursor(0, 1);
+        lcd.print(second);
+      }
+    }
+
+    // Touche opération
+    else if (customKey == '+' || customKey == '-' || customKey == '*' || customKey == '/') {
+      operation = customKey;
+      calcState = ENTER_SECOND;
+      readyForNext = false;
+
+      lcd.setCursor(15, 0);  // Affiche l'opération en haut à droite
+      lcd.print(operation);
+    }
+
+    // Touche égal
+    else if (customKey == '=') {
+      switch (operation) {
+        case '+': total = first + second; break;
+        case '-': total = first - second; break;
+        case '*': total = first * second; break;
+        case '/': total = (second != 0) ? (float)first / second : 0; break;
+      }
+
+      // Affiche le résultat comme une vraie calculatrice
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(total);
+
+      // Préparer pour un nouveau calcul
+      first = total;
+      second = 0;
+      calcState = ENTER_SECOND;
+      readyForNext = true;
+    }
+
+    // Touche Clear
+    else if (customKey == 'C') {
+      lcd.clear();
+      first = 0;
+      second = 0;
+      total = 0;
+      calcState = ENTER_FIRST;
+      readyForNext = false;
+    }
+  }
+}
